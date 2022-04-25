@@ -45,5 +45,6 @@ def predict():
 		os.remove("file.wav")
 		return jsonify( 
 		    result = int(model_predictions[0]),
-		    transcription = transcription
+			transcription = transcription
+
 		)
