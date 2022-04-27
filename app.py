@@ -37,9 +37,20 @@ def predict():
 		sample_audio = recognizer.record(source)
 		
 	#Transcribing urduSpeech_audio
-	trnascripted_text=recognizer.recognize_google(audio_data=sample_audio, language="en-US")
+	trnascripted_text=recognizer.recognize_google(audio_data=sample_audio, language="en-US", show_all= True)
+	if type (trnascripted_text) is dict:
+		trnascripted_text = trnascripted_text['alternative'][0]['transcript'] 
+		trnascripted_text_list=[trnascripted_text]
+		transcription_error = 0
 
-	trnascripted_text_list=[trnascripted_text]
+	elif type (trnascripted_text) is list:
+		trnascripted_text_list = [] 
+		trnascripted_text_list.append('This audio is not suitable for transcription')
+		transcription_error = 1
+
+	else:
+		pass
+
 	app_transcription=pd.DataFrame(trnascripted_text_list, columns=['Transcription'])
 	#text based preprocessing
 	app_transcription['Transcription'] = app_transcription['Transcription'].apply(lambda x: " ".join(x.lower() for x in x.split())) 
@@ -65,9 +76,13 @@ def predict():
 	# Load the Saved Model
 	model = pickle.load(open('./models/trained_model.pkl', 'rb'))
 	model_predictions = model.predict(input_testing_features)
+	if transcription_error == 0:
+		sent_prediction = model_predictions[0]
+	else:
+		sent_prediction = -1
 
 	os.remove("file.wav")
 	return jsonify( 
-		result = int(model_predictions[0]),
-		transcription = trnascripted_text
+		result = int(sent_prediction),
+		transcription = trnascripted_text_list[0]
 	)
