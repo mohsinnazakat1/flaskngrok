@@ -41,48 +41,40 @@ def predict():
 	if type (trnascripted_text) is dict:
 		trnascripted_text = trnascripted_text['alternative'][0]['transcript'] 
 		trnascripted_text_list=[trnascripted_text]
-		transcription_error = 0
+		sent_transcription = trnascripted_text_list
 
-	elif type (trnascripted_text) is list:
-		trnascripted_text_list = [] 
-		trnascripted_text_list.append('This audio is not suitable for transcription')
-		transcription_error = 1
+		app_transcription=pd.DataFrame(trnascripted_text_list, columns=['Transcription'])
+		#text based preprocessing
+		app_transcription['Transcription'] = app_transcription['Transcription'].apply(lambda x: " ".join(x.lower() for x in x.split())) 
+		app_transcription['Transcription'] = app_transcription['Transcription'].map(lambda x: re.sub(r'\W+', ' ', x)) 
+		preprocessed_testing_data = app_transcription
+
+		#loading tfidf vetorizer 
+		Tfidf_vectorizer = pickle.load(open('./models/vectorizer_word_unigram.pkl', 'rb'))
+		# Input of Testing Data
+		test_text = preprocessed_testing_data['Transcription']
+
+		# Transform the Input Text using TFIDF Vectorizer
+		transform_features = Tfidf_vectorizer.transform(test_text)
+
+		# Get the name of Features (Feature  Set)
+		feature_set = Tfidf_vectorizer.get_feature_names_out()
+
+		# Convert Transformed features into Array and Create a Dataframe
+		Input_features = pd.DataFrame(transform_features.toarray(), columns = feature_set)
+
+		# Get the name of Features (Feature  Set) and create a DataFrame of Input Features
+		input_testing_features = pd.DataFrame(Input_features, columns = Tfidf_vectorizer.get_feature_names_out())
+		# Load the Saved Model
+		model = pickle.load(open('./models/trained_model.pkl', 'rb'))
+		model_predictions = model.predict(input_testing_features)
 
 	else:
-		pass
-
-	app_transcription=pd.DataFrame(trnascripted_text_list, columns=['Transcription'])
-	#text based preprocessing
-	app_transcription['Transcription'] = app_transcription['Transcription'].apply(lambda x: " ".join(x.lower() for x in x.split())) 
-	app_transcription['Transcription'] = app_transcription['Transcription'].map(lambda x: re.sub(r'\W+', ' ', x)) 
-	preprocessed_testing_data = app_transcription
-
-	#loading tfidf vetorizer 
-	Tfidf_vectorizer = pickle.load(open('./models/vectorizer_word_unigram.pkl', 'rb'))
-	# Input of Testing Data
-	test_text = preprocessed_testing_data['Transcription']
-
-	# Transform the Input Text using TFIDF Vectorizer
-	transform_features = Tfidf_vectorizer.transform(test_text)
-
-	# Get the name of Features (Feature  Set)
-	feature_set = Tfidf_vectorizer.get_feature_names_out()
-
-	# Convert Transformed features into Array and Create a Dataframe
-	Input_features = pd.DataFrame(transform_features.toarray(), columns = feature_set)
-
-	# Get the name of Features (Feature  Set) and create a DataFrame of Input Features
-	input_testing_features = pd.DataFrame(Input_features, columns = Tfidf_vectorizer.get_feature_names_out())
-	# Load the Saved Model
-	model = pickle.load(open('./models/trained_model.pkl', 'rb'))
-	model_predictions = model.predict(input_testing_features)
-	if transcription_error == 0:
-		sent_prediction = model_predictions[0]
-	else:
-		sent_prediction = -1
+		model_predictions = [0]
+		sent_transcription = []
 
 	os.remove("file.wav")
 	return jsonify( 
-		result = int(sent_prediction),
-		transcription = trnascripted_text_list[0]
+		result = int(model_predictions[0]),
+		transcription = sent_transcription
 	)
